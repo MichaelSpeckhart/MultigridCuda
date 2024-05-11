@@ -56,7 +56,7 @@ __global__ void initMatrixA(double* A, int N) {
 
 __global__ void weightedJacobi(double* A, double *b, double *x, double *xNew, int N) {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
-    double omega = 2.0 / 3.0;  // Correct division to floating-point
+    double omega = 2.0 / 3.0;  
     if (i < N) {
         double sigma = 0.0;
         for (int j = 0; j < N; ++j) {
@@ -70,7 +70,7 @@ __global__ void weightedJacobi(double* A, double *b, double *x, double *xNew, in
 
 __global__ void weightedJacobiLast(double* A, double *b, double *x, double *xNew, int N) {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
-    double omega = 2.0 / 3.0;  // Correct division to floating-point
+    double omega = 2.0 / 3.0;  
     if (i < N) {
         double sigma = 0.0;
         for (int j = 0; j < N; ++j) {
@@ -80,12 +80,11 @@ __global__ void weightedJacobiLast(double* A, double *b, double *x, double *xNew
         }
         xNew[i] = omega * (b[i] - sigma) / A[i * N + i] + (1 - omega) * x[i];
     }
-    // No pointer assignment, as it doesn't work as intended
 }
 
 __global__ void weightedJacobiFirst(double* A, double *b, double *x, double *xNew, int N) {
     int i = blockDim.x * blockIdx.x + threadIdx.x;
-    double omega = 2.0 / 3.0;  // Correct division to floating-point
+    double omega = 2.0 / 3.0;  
     if (i < N) {
         double sigma = 0.0;
         for (int j = 0; j < N; ++j) {
@@ -112,15 +111,6 @@ __global__ void calculateResidual(double *A, double *x, double *b, double *resid
     }
 }
 
-__global__ void fullWeightRestriction(double* f2h, double *residual, int N) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    int nh = N / 2;  // Half the size of N, assuming N is even.
-    if (i < nh) {
-        if (2 * i + 2 < N) { // Check to avoid out-of-bounds access
-            f2h[i] = (residual[2 * i] + 2 * residual[2 * i + 1] + residual[2 * i + 2]) / 4.0;
-        }
-    }
-}
 
 __global__ void errorCorrection(double* x2h, double *e2h, int N) {
     for (int i = 0; i < N; ++i) {
@@ -136,24 +126,20 @@ __global__ void residualCorrection(double* r2h, double *f2h, double *Ax2h, int N
 
 __global__ void errorProlongation(double *eh, double *x2h, int N) {
     int n2h = N / 2;
-    // Assign values from x2h to every second element of eh, starting at index 1 (0-based)
+    
     for (int i = 1; i < N - 1 && (i / 2) < n2h; i += 2) {
         eh[i] = x2h[i / 2];
     }
 
-    // Interpolate to find values at odd indices based on the new values at even indices
+    
     for (int i = 0; i < N - 2; i += 2) {
-        if (i + 1 < N) eh[i + 1] = 0.5 * eh[i + 2]; // Average with the next even-indexed element
+        if (i + 1 < N) eh[i + 1] = 0.5 * eh[i + 2]; 
     }
 
-    // Adjust values at odd indices again by adding half the previous even-indexed values
     for (int i = 3; i < N; i += 2) {
-        if (i - 1 < N) eh[i] += 0.5 * eh[i - 1]; // Add half of the previous even-indexed value
+        if (i - 1 < N) eh[i] += 0.5 * eh[i - 1]; 
     }
 
-    // for (int i = 0; i < N / 2; ++i) {
-    //     printf("X2[%d] = (%f)\n", i, x2h[i]);
-    // }
 }
 
 __global__ void checkInitialization(double *array, int size) {
@@ -165,7 +151,7 @@ __global__ void checkInitialization(double *array, int size) {
 }
 
 std::vector<double> solveJacobi(double *d_A, double *d_x, double *d_b, double *d_xNew, int N) {
-    // Initial guess for x (could be zero or another guess)
+    // Initial guess for x (could be zero or another guess) *Foureier
     std::vector<double> h_x(N, 0.0);  // Initial guess on the host
     cudaMemcpy(d_x, h_x.data(), N * sizeof(double), cudaMemcpyHostToDevice);
 
@@ -217,6 +203,7 @@ std::vector<double> solveJacobi(double *d_A, double *d_x, double *d_b, double *d
 }
 
 __global__ void discretizeGrid(double *A2h, int N, double h, double hs) {
+
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     for (int i = 0; i < N; ++i) {
         double val_left = -((1.0 / hs) + (0.5 * bs / hs)) * d;
@@ -232,11 +219,6 @@ __global__ void discretizeGrid(double *A2h, int N, double h, double hs) {
             A2h[index + 1] = val_right;  
         }
     }
-    // printf("A2h contents\n");
-    // for (int i = 0; i < N; ++i) {
-    //     printf("A2[%d] = (%f)\n", i, A2h[i]);
-    // }
-    // printf("A2h contents done\n");
 }
 
 std::vector<double> coarseGridCorrection(double *A, double *r, double tol, int N) {
@@ -480,8 +462,8 @@ __global__ void initVectors(double* x, double* b, int N, double fillValue) {
 
 //#include <chrono>
 
-int main() {
-    const int N = 16;
+int main(int argc, char **argv) {
+    const int N = stoi(argv[1]);
     double *A, *x, *b;
     cudaMalloc(&A, N * N * sizeof(double));
     cudaMalloc(&x, N * sizeof(double));
